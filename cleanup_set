@@ -7,7 +7,7 @@ if [ -n "$2" ] ; then
 fi
 
 echo $SERVERNAME
-exit
+
 pushd "results/${SERVERNAME}"
 psql -d results -At -c "SELECT test FROM tests WHERE server='${SERVERNAME}' AND test=$TEST" | xargs rm -rf
 psql -d results -At -c "DELETE FROM test_bgwriter WHERE server='${SERVERNAME}' AND test=$TEST"
