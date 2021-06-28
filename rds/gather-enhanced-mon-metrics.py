@@ -29,6 +29,7 @@ utc_2="2021-06-27 14:24:33.105007"
 endTime=utc_to_epoch(utc_2)
 print(endTime)
 
+endTime=1624919970
 
 
 logs = client.get_log_events(logGroupName=LOG_GROUP_NAME,
