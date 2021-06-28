@@ -8,4 +8,9 @@ RESULTPSQL="psql -h $RESULTHOST -U $RESULTUSER -p $RESULTPORT -d $RESULTDB"
 
 #Query 
 INSERT_PMON=""INSERT INTO test_metrics_data (collected,value,metric,test,server) 
-$RESULTPSQL -e -c 
+# $RESULTPSQL -e -c 
+
+RDSOS_LOG_GROUP=RDSOSMetrics
+RDSOS_DBCLUSTER_LOG_STREAM=db-V2R2O3XWYK6N4CYIM2UC3L6IZE
+aws logs get-log-events --log-group-name $RDSOS_LOG_GROUP \
+                        --log-stream-name $RDSOS_DBCLUSTER_LOG_STREAM
