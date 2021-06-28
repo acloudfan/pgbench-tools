@@ -1,0 +1,11 @@
+#!/bin/bash
+#Gather the enhanced monioting metrics for offline  analysis
+
+source ../config
+
+#Used for executing queries
+RESULTPSQL="psql -h $RESULTHOST -U $RESULTUSER -p $RESULTPORT -d $RESULTDB"
+
+#Query 
+INSERT_PMON=""INSERT INTO test_metrics_data (collected,value,metric,test,server) 
+$RESULTPSQL -e -c 
