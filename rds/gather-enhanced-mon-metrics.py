@@ -7,9 +7,7 @@
 import boto3
 from datetime import datetime
 
-client = boto3.client('logs',region_name='us-east-2')
-# session = boto3.session.Session('logs',profile_name='blog')
-# client=session.client('logs',region_name='us-east-2')
+client = boto3.client('logs') 
 
 LOG_GROUP_NAME='RDSOSMetrics'
 LOG_STREAM_DBCLUSTER='db-V2R2O3XWYK6N4CYIM2UC3L6IZE'
@@ -21,7 +19,11 @@ def utc_to_epoch(utc_timestamp):
     epoch_time = ((utc_time - datetime(1970, 1, 1)).total_seconds())*1000
     return int(epoch_time)
 
-utc_1="2021-06-27 14:23:32.22111"
+# Get the latest set
+def get_latest_set():
+    sql="SELECT max(set) FROM testset WHERE server="
+
+utc_1="2021-06-29 01:09:35.291194"
 startTime=utc_to_epoch(utc_1)
 print(startTime)
 
@@ -29,7 +31,7 @@ utc_2="2021-06-27 14:24:33.105007"
 endTime=utc_to_epoch(utc_2)
 print(endTime)
 
-endTime=1624919970
+endTime  =int(datetime.now().timestamp())*1000
 
 
 logs = client.get_log_events(logGroupName=LOG_GROUP_NAME,
