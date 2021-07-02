@@ -17,4 +17,9 @@ $RESULTPSQL -c "DELETE FROM tests WHERE server='${SERVERNAME}';"
 $RESULTPSQL -c "DELETE FROM testset WHERE server='${SERVERNAME}';"
 $RESULTPSQL -c "DELETE FROM server WHERE server='${SERVERNAME}';"
 
+# Added for 
+$RESULTPSQL -c "DELETE FROM test_pmon_metrics_data WHERE WHERE server='${SERVERNAME}';"
+$RESULTPSQL -c "DELETE FROM pmon_metric_stripped WHERE WHERE server='${SERVERNAME}';"
+
+
 rm -rf results/${SERVERNAME}
