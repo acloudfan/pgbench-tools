@@ -24,6 +24,8 @@ mkdir -p results/$SERVERNAME # In case name is modified after run
 OUTFILE="results/$SERVERNAME/index.htm"
 RESULTPSQL="psql -h $RESULTHOST -U $RESULTUSER -p $RESULTPORT -d $RESULTDB"
 
+echo $RESULTPSQL
+
 # Emulate 'sed -i' behavior from GNU sed with standard sed instead.
 # Needed on platforms like Solaris.
 function sed-i {
@@ -62,7 +64,7 @@ echo "<img src=\"clients.png\"><p>" >> $OUTFILE
 
 # TODO Consider using tablefunc extension to create a dynamic crosstab instead of psql.
 echo Scale vs. client TPS grid: >> $OUTFILE
-$RESULTPSQL >> $OUTFILE -H -d results <<EOF
+$RESULTPSQL >> $OUTFILE -H -d $RESULTDB <<EOF
 \pset footer off
 SELECT scale,clients,ROUND(AVG(tps)) AS tps FROM tests GROUP BY scale,clients ORDER BY scale,clients
 \crosstabview
@@ -104,10 +106,12 @@ for SET in $SETS ; do
     mv -f clients.txt clients-$SET.txt
  fi
 
+
+
   echo "<img src=\"scaling-$SET.png\"><p>" >> $OUTFILE
   echo "<img src=\"clients-$SET.png\"><p>" >> $OUTFILE
   echo Scale vs. client TPS grid: >> $OUTFILE
-  $RESULTPSQL >> $OUTFILE -H -d results <<EOF
+  $RESULTPSQL >> $OUTFILE -H -d $RESULTDB <<EOF
 \pset footer off
 SELECT scale,clients,ROUND(AVG(tps)) AS tps FROM tests WHERE server='${SERVERNAME}' AND set='${SET}' GROUP BY scale,clients ORDER BY scale,clients
 \crosstabview

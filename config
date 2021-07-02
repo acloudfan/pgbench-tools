@@ -36,7 +36,7 @@ RESULTPORT="$TESTPORT"
 RESULTDB=pgbenchtools
 
 # What server name to use when saving the results.  It's just a label,
-SERVERNAME=rdsa
+export SERVERNAME=rdsa
 
 #
 # Main test run customization.  Test scripts add a .sql extension for you.
@@ -49,8 +49,8 @@ MAX_WORKERS="auto"
 #MAX_WORKERS=""
 
 SCRIPT="tpc-b"
-SCALES="1 10 100 1000"
-SETCLIENTS="10 50 100 150 200"
+SCALES="1 10"
+SETCLIENTS="1 10 20"
 SETTIMES=3
 
 # FILLFACTOR option
@@ -85,3 +85,42 @@ TRIM=1
 # Parameters for system monitoring code
 #
 DISKLIST="sda"
+
+################################################
+# Enhanced performance monitoring parameters
+################################################
+
+#
+# DB Resource ID for instance against which tests are being run
+# A Log stream with this name gets created under RDSOOSMetrics once the emon is enabled for instance
+#
+export LOG_STREAM_DB_INSTANCE='db-V2R2O3XWYK6N4CYIM2UC3L6IZE'
+
+#
+# Exclusion list for the metrics
+# All metric except the following will be used in the reports
+#
+METRIC_cpuUtilization_exclude="idle"
+METRIC_memory_exclude="total hugePagesRsvd hugePagesFree hugePagesSurp hugePagesTotal hugePagesSize irq"
+METRIC_loadAverageMinute_exclude=""
+METRIC_tasks_exclude=""
+METRIC_swap_exclude=""
+METRIC_network_exclude="interface dummy"
+
+
+export METRIC_cpuUtilization_exclude="idle"
+export METRIC_memory_exclude="total,hugePagesRsvd,hugePagesFree,hugePagesSurp,hugePagesTotal,hugePagesSize,irq"
+export METRIC_loadAverageMinute_exclude=""
+export METRIC_tasks_exclude=""
+export METRIC_swap_exclude="swap"
+export METRIC_network_exclude="interface"
+
+#
+# Histograms - Metric Reports to be generated
+# Specify the reports that you would like generated
+# X-Axis = Valid values = clients ,   scale
+# Y-Axis = category = cpuUtilization  memory  loadAverageMinute  tasks  swap  network 
+#                     diskIO.latency diskIO.throughput diskIO.iops diskIO.diskQueueDepth
+# Clients vs Metric        Scale vs Metric
+export PMON_REPORTS_HISTO_CLIENTS="cpuUtilization memory diskIO.latency diskIO.diskQueueDepth tasks swap network"
+export PMON_REPORTS_HISTO_SCALE="diskIO.latency diskIO.throughput tasks"

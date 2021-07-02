@@ -1,0 +1,8 @@
+#!/bin/bash
+#Generates the desired reports/graphs from emon data
+
+. ./config
+
+mkdir -p ./results/$SERVERNAME/emon_data
+
+python3 ./rds/report_emon_report.py

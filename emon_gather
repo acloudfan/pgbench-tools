@@ -1,0 +1,6 @@
+#!/bin/bash
+#Gathers the monitoring data
+
+. ./config
+
+python3  rds/gather-enhanced-mon-metrics.py
