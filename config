@@ -36,7 +36,7 @@ RESULTPORT="$TESTPORT"
 RESULTDB=pgbenchtools
 
 # What server name to use when saving the results.  It's just a label,
-export SERVERNAME=rdsa
+export SERVERNAME=rdsa-jul-7
 
 #
 # Main test run customization.  Test scripts add a .sql extension for you.
@@ -49,9 +49,15 @@ MAX_WORKERS="auto"
 #MAX_WORKERS=""
 
 SCRIPT="tpc-b"
-SCALES="1 10"
-SETCLIENTS="1 10 20"
-SETTIMES=3
+SCALES="100 300 1000 3000"
+SETCLIENTS="10 20 30 40 50 60 70 80 90 100 110 120 140"
+SETTIMES=1
+
+#SCRIPT="tpc-b"
+#SCALES="1 10 100 1000"
+#SETCLIENTS="10 100 200 300 500"
+#SETTIMES=3
+
 
 # FILLFACTOR option
 # uses fillfactor option from pgbench
@@ -100,14 +106,6 @@ export LOG_STREAM_DB_INSTANCE='db-V2R2O3XWYK6N4CYIM2UC3L6IZE'
 # Exclusion list for the metrics
 # All metric except the following will be used in the reports
 #
-METRIC_cpuUtilization_exclude="idle"
-METRIC_memory_exclude="total hugePagesRsvd hugePagesFree hugePagesSurp hugePagesTotal hugePagesSize irq"
-METRIC_loadAverageMinute_exclude=""
-METRIC_tasks_exclude=""
-METRIC_swap_exclude=""
-METRIC_network_exclude="interface dummy"
-
-
 export METRIC_cpuUtilization_exclude="idle"
 export METRIC_memory_exclude="total,hugePagesRsvd,hugePagesFree,hugePagesSurp,hugePagesTotal,hugePagesSize,irq"
 export METRIC_loadAverageMinute_exclude=""

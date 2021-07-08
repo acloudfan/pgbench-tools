@@ -7,6 +7,7 @@ import os
 import boto3
 from datetime import datetime
 import json
+import sys
 
 
 
@@ -45,11 +46,15 @@ def utc_to_epoch(utc_timestamp):
 
 # Get the set number for the latest set
 def get_latest_set(server):
-        sql='SELECT max(set) FROM testset WHERE server=\''+server+'\''
+        sql='SELECT max(set) FROM testset WHERE server=\''+server+'\' '
+        # print(sql)
         cur = conn.cursor()
         cur.execute(sql)
-        set_max=cur.fetchone()[0]
+        set_max  =cur.fetchone()[0]
         return set_max
+        
+
+  
 
 # Get the test numbers for the latest set
 def get_test_numbers(set):
@@ -98,7 +103,7 @@ def seggregate_diskIO_metric(eventdata_category):
       metric_dict_iops['metric_data'][metric]=eventdata_category[0][metric]
     elif metric == 'diskQueueDepth' :
       # print(eventdata_category[0][metric])
-      metric_dict_queue_depth['metric_data'][metric]=round(eventdata_category[0][metric])
+      metric_dict_queue_depth['metric_data'][metric]=(eventdata_category[0][metric])
 
   return [metric_dict_latency,metric_dict_throughput,metric_dict_iops,metric_dict_queue_depth]
   
@@ -130,7 +135,7 @@ def insert_stripped_event_pmon_metric(server, set, test, clients, scale, event):
         insert_metric_data(eventdata_category,category,collected,timestamp, server, set, test,clients,scale)
     else:
       eventdata_category= eventdata[category]
-      print(eventdata_category)
+      # print(eventdata_category)
       # Insert the metric data
       insert_metric_data(eventdata_category,category,collected,timestamp, server, set, test,clients,scale)
 
@@ -186,7 +191,7 @@ def get_emon_data(server, set, tests_data):
                 test_num=testdata.test
                 start_time=testdata.start_time
                 end_time=testdata.end_time
-                print(str(test_num)+ ' '+str(start_time))
+                # print(str(test_num)+ ' '+str(start_time))
                 response = client.get_log_events(logGroupName=LOG_GROUP_NAME,
                       logStreamName=LOG_STREAM_DB_INSTANCE,
                        startTime=utc_to_epoch(str(start_time)),
@@ -196,16 +201,123 @@ def get_emon_data(server, set, tests_data):
                 # Insert the response in the pmon table
                 insert_into_pmon_table(server, set, testdata)
 
-server = 'rdsa'
 
-set_max=get_latest_set('rdsa')
-print(set_max)
 
-tests=get_test_numbers(set_max)
-# print(tests)
+#Insert processed data
+def process_emon_data(set):
+  
+  # remove existing processed data
+  sql='DELETE FROM pmon_metric_processed WHERE set=%i'  %  set
+  cur=conn.cursor()
+  cur.execute(sql)
+  conn.commit()
+  
+  
+  cur=conn.cursor()
+  # Get all category
+  sql='SELECT DISTINCT category FROM pmon_metric_stripped WHERE set=%i'  % set
+  cur.execute(sql)
+  categories=cur.fetchall()
+  conn.commit()
 
-get_emon_data(server, set_max, tests)
+  # Now go through cats & met to fetch the data
+  sql1='INSERT INTO pmon_metric_processed(server,set,category,metric,clients,scale,value_avg,value_min,value_max)  '
+  sql2='SELECT \'%s\' as server, %i as set, \'%s\' as category, \'%s\' as metric, clients, scale,  (avg(value)), min(value), max(value) from pmon_metric_stripped where server=\'%s\' AND set=%i AND category=\'%s\' AND metric=\'%s\'  GROUP By clients, scale'
+  print('SET='+str(set))
+  for category in categories:
+    # Get all metric
+    sql='SELECT DISTINCT metric FROM pmon_metric_stripped WHERE set=%i AND category=\'%s\''  %  (set,category[0])
+    cur.execute(sql)
+    metrics=cur.fetchall()
+    conn.commit()
+    for metric in metrics:
+      # print(category[0],metric[0])
+      sql_pro=(sql1  +'('+ sql2 +')' ) % (server,set,category[0],metric[0], server, set,category[0],metric[0])
+      # print(sql_pro)
+      cur=conn.cursor()
+      cur.execute(sql_pro)
+      conn.commit()
+      
+      
 
-# print()
+#Returns the test sets for the given server
+def get_sets_for_server():
+  server = os.getenv('SERVERNAME')
+  sql='SELECT set, info FROM testset WHERE server=\'%s\''   %    server
+  cur=conn.cursor()
+  cur.execute(sql)
+  rows=cur.fetchall()
+  sets = []
+  for row in rows:
+    sets.append({"set": row[0], "info": row[1]})
+  conn.commit()
+  return sets;
 
-# print(tests[0].events)
+
+def get_set_for_info(info):
+  sql = 'SELECT set from testset WHERE info=\'%s\''     %      (info)
+  cur=conn.cursor()
+  cur.execute(sql)
+  set, = cur.fetchone()
+  conn.commit()
+  return set
+
+def get_info_for_set(set):
+  sql = 'SELECT info from testset WHERE set=\'%i\''     %      (set)
+  cur=conn.cursor()
+  cur.execute(sql)
+  info, = cur.fetchone()
+  conn.commit()
+  return info
+
+server = os.getenv('SERVERNAME')
+def process_all_sets():
+
+  all_sets=get_sets_for_server()  ;
+  # Gather all emon data for the GIVEN server ALL sets
+  for set in all_sets:
+    print('Processing set# %i     %s'   %     (set['set'], set['info']))
+    tests=get_test_numbers(set['set'])
+    # print('Tests: ', tests)
+    get_emon_data(server, set['set'], tests)
+    process_emon_data(set['set'])
+
+print(sys.argv)
+if len(sys.argv) > 1:
+  # print(sys.argv[1])
+  if sys.argv[1]=='ALL':
+      print("Processing ALL Sets for server : ", server)
+      process_all_sets()
+  else:
+    # process the named set
+    set_info = sys.argv[1]
+    set = get_set_for_info(set_info)
+    print("Processing set#  %i    %s"   %  (set, set_info))
+    tests=get_test_numbers(set)
+    get_emon_data(server, set, tests)
+    process_emon_data(set)
+else:
+  set_max = get_latest_set(server)
+  tests=get_test_numbers(set_max)
+  info=get_info_for_set(set_max)
+  print('Processing the latest set: %i   %s'   %     (set_max, info))
+  get_emon_data(server, set_max, tests)
+  process_emon_data(set_max)
+
+# process_emon_data(35)
+
+  
+  
+  
+#OLDER
+
+# server = os.getenv('SERVERNAME')
+# set_max=get_latest_set(server)
+
+# print('Servername = %s   Set = %i' % (server,set_max))
+
+# tests=get_test_numbers(set_max)
+# # print(tests)
+
+# get_emon_data(server, set_max, tests)
+

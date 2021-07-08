@@ -17,6 +17,19 @@ CREATE TABLE pmon_metric_stripped (
     scale    integer NOT NULL,
     category  varchar(50) NOT NULL,
     metric text NOT NULL,
-    value float,
+    value   float,
     values  text
+);
+
+DROP TABLE IF EXISTS pmon_metric_processed;
+CREATE TABLE pmon_metric_processed (
+    server text NOT NULL,
+    set int NOT NULL,
+    clients  integer NOT NULL,
+    scale    integer NOT NULL,
+    category  varchar(50) NOT NULL,
+    metric text NOT NULL,
+    value_avg   float,
+    value_min   float,
+    value_max   float
 );

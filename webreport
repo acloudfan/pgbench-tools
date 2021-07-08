@@ -207,6 +207,8 @@ for SET in $SETS ; do
   echo  "'clients-$SET.txt' using 1:2 axis x1y1 title '$DESCR' with linespoints linewidth 2 pointtype 7 pointsize 1.5$DELIM" >> multi-client.plot
 done
 
+# cat multi-client.plot
+
 if [ ! -z $GNUPLOT ] && [ -x $GNUPLOT ]; then
   gnuplot multi-scale.plot 2>&1 | grep -v "Warning: empty"
   gnuplot multi-client.plot 2>&1 | grep -v "Warning: empty"

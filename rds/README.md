@@ -11,3 +11,7 @@ Average CPU
 Average Free Memory
 Average WriteIOPS, ReadIOPS
 
+rds install
+===========
+pip3 install -r ./rds/requirements.txt
+

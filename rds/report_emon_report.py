@@ -3,10 +3,12 @@
 #https://www.xmodulo.com/plot-bar-graph-gnuplot.html
 #https://realpython.com/python-formatted-output/
 #http://www.bersch.net/gnuplot-doc/histograms.html
+#https://docs.datadoghq.com/integrations/amazon_rds/?tab=standard
 
 import psycopg2
 import os
 import json
+
 
 exclude_category_metric={
     # "cpuUtilization": ["idle"],
@@ -28,6 +30,7 @@ metric_reports={}
 #Destination for all resports
 SERVER_FOLDER='./results/'+os.getenv('SERVERNAME')
 SERVER_FOLDER_DATA=SERVER_FOLDER+'/emon_data'
+SERVER_FOLDER_SET_INFO=''
 
 # Read the config file and setup the environment vars
 USER=os.environ['PGUSER']
@@ -77,12 +80,15 @@ def setup_config():
 
 # Gets the average for the desired catrgory & metric combination orders by scale | clients
 # Writes to the passed dictionary
-def get_average_metric(scale_or_clients, category, metric, dict):
+def get_average_metric(set, scale_or_clients, category, metric, dict):
 
+    # SAMPLE =  select clients, scale,avg(value),max(value),min(value) from pmon_metric_stripped where set=35 AND category='cpuUtilization' AND metric='total'  GROUP By clients, scale;
+    # TEST   =  select clients, scale,avg(value),max(value),min(value) from pmon_metric_stripped where set=35 AND category='cpuUtilization' AND metric='total' AND clients=10 AND scale=1;
     if category == 'loadAverageMinute':
-        sql = 'SELECT '+scale_or_clients+',10*(AVG(value)) FROM pmon_metric_stripped WHERE category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
+        sql = 'SELECT '+scale_or_clients+',10*(AVG(value)) FROM pmon_metric_stripped WHERE set='+str(set)+' AND category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
     else:
-        sql = 'SELECT '+scale_or_clients+',ROUND(AVG(value)) FROM pmon_metric_stripped WHERE category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
+        sql = 'SELECT '+scale_or_clients+',ROUND(AVG(value)) FROM pmon_metric_stripped WHERE set='+str(set)+' AND category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
+        # sql = 'SELECT clients, scale,avg(value),max(value),min(value) from pmon_metric_stripped where set=%i AND category=\'%s\' AND metric=\'%s\'  GROUP By clients, scale'   %    (set,category,metric)
     # print(sql)
     cur = conn.cursor()
     cur.execute(sql)
@@ -94,9 +100,9 @@ def get_average_metric(scale_or_clients, category, metric, dict):
         dict[str(row[0])].append(row[1])
 
 # Gets the average for the desired test
-def get_average_metric_write(scale_or_clients, category, metric):
+def get_average_metric_write(set, scale_or_clients, category, metric):
 
-    sql = 'SELECT '+scale_or_clients+',ROUND(AVG(value)) FROM pmon_metric_stripped WHERE category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
+    sql = 'SELECT '+scale_or_clients+',ROUND(AVG(value)) FROM pmon_metric_stripped WHERE set='+set+'  AND category=\''+category+'\' AND metric=\''+metric+'\' GROUP BY '+ scale_or_clients +' ORDER BY '+ scale_or_clients
 
     cur = conn.cursor()
     cur.execute(sql)
@@ -148,7 +154,7 @@ def find_max_metric_value(category):
 
 #Setup the histo data based on category
 #Write the data file
-def generate_average_metric_in_category(scale_or_clients, category):
+def generate_average_metric_in_category(set,scale_or_clients, category):
 
     metrics=get_distinct_metric_in_category(category)
     
@@ -159,12 +165,20 @@ def generate_average_metric_in_category(scale_or_clients, category):
     }
     # Read the metrics data
     for metric in metrics:
-        get_average_metric(scale_or_clients, category, metric,dict)
+        get_average_metric(set, scale_or_clients, category, metric,dict)
         # scale_client_values=[]
     # print(dict)
     # Create the data file
     data_file=scale_or_clients+"-"+category+"-avg.txt"
-    data_file=SERVER_FOLDER_DATA+"/"+data_file
+    
+    # create folder if needed
+    try:
+        os.makedirs(SERVER_FOLDER_DATA+"/"+SERVER_FOLDER_SET_INFO)
+    except OSError as error:
+        print(error)
+        
+    
+    data_file=SERVER_FOLDER_DATA+"/"+SERVER_FOLDER_SET_INFO+"/"+data_file
     print("Creating Data File: "+data_file)
     f = open(data_file, 'w')
 
@@ -183,11 +197,17 @@ def generate_average_metric_in_category(scale_or_clients, category):
             for data in dict[met]:
                 if category=="memory":
                     data = data/1024
+                if category=="network":
+                    # Change to Kbps
+                    data = data/(1024)
                 f.write(str(data)+' ')
             f.write("\n")
-    image_file=SERVER_FOLDER+"/"+scale_or_clients+"-"+category+"-avg.png"
+            
+    
+    image_file=SERVER_FOLDER_DATA+"/"+SERVER_FOLDER_SET_INFO+"/"+scale_or_clients+"-"+category+"-avg.png"
 
-    title="Average "+category+" vs. "+scale_or_clients
+    # title="Average "+category+" vs. "+scale_or_clients
+    title='[%s] Average %s  vs. %s'     %   (SERVER_FOLDER_SET_INFO,category,scale_or_clients)
 
     # Category specific stuff
     y_max=find_max_metric_value(category)
@@ -198,8 +218,8 @@ def generate_average_metric_in_category(scale_or_clients, category):
     elif category=='tasks':
         y_max=y_max*1.2
     elif category=='network':
-        y_max=y_max*1.2
-        title += ' (MBPS)'
+        y_max=(y_max*1.2)/1024
+        title += ' (Kbps)'
     elif category=='swap':
         sql = 'SELECT value FROM pmon_metric_stripped WHERE metric=\'total\' AND category=\'swap\''
         cur=conn.cursor()
@@ -294,7 +314,7 @@ def generate_png_histo(title, data_file, image_file):
     
     # gp.write("set terminal pngcairo size 640,480 enhanced font 'sans,10';\n")
     gp.write("set output '" +image_file + "';\n")
-    gp.write('set terminal png size 800,500 enhanced font "default,20";\n')
+    gp.write('set terminal png size 640,480 enhanced font "default,14";\n')
     gp.write('red = "#FF0000"; green = "#00FF00"; blue = "#0000FF"; skyblue = "#87CEEB"; yellow="#F1C40F"; orange="#E67E22"; purple="#76448A"; silver="#CACFD2"; salmon="#FFA07A"; \n')
     gp.write('set yrange [0:100]\n')
     gp.write('set style data histogram\n')
@@ -315,14 +335,74 @@ def generate_png_histo(title, data_file, image_file):
 
     gp.write(plot)
 
+# This generates the emon report for the given set
+def generate_side_by_side_png_html():
+    html='<h1>Enhanced Monitoring Data</h1>'
+    html+='<h4>All Sets</h4>'
+    # Go through the category & 
+    for category in metric_reports:
+        # html+='<h1>%s</h1>'    %   category
+        html+='<div  style="background-color: lightblue"><h1>%s</h1></div>'   %   category
+        for scale_clients in metric_reports[category]:
+            html+='<hr>'
+            for set in all_sets:
+                
+                img_file=scale_clients+"-"+category+"-avg.png"
+                html+='<img src="%s/%s"/>'     %      (set['info'],img_file)
+
+    # write out the html file
+    f=open(SERVER_FOLDER_DATA+'/index.htm','w')
+    f.write(html)
+    f.close()
+            
+            
+            
+        
+
+
+#Returns the test sets for the given server
+def get_sets_for_server():
+  server = os.getenv('SERVERNAME')
+  sql='SELECT set, info FROM testset WHERE server=\'%s\''   %    server
+  cur=conn.cursor()
+  cur.execute(sql)
+  rows=cur.fetchall()
+  sets = []
+  for row in rows:
+    sets.append({"set": row[0], "info": row[1]})
+  conn.commit()
+  return sets;
+  
+  
+  #######################
 
 # Setup config using env vars defined in config
 setup_config()
 
-# generate the requested reports
-for category in metric_reports:
-    for scale_or_clients in metric_reports[category]:
-        generate_average_metric_in_category(scale_or_clients, category)
+
+
+all_sets=get_sets_for_server()  ;
+
+# Generate report for all sets for a server
+for set in all_sets:
+    print('Reporting on set# %i     %s'   %     (set['set'], set['info']))
+    
+    # generate the requested reports
+    for category in metric_reports:
+        for scale_or_clients in metric_reports[category]:
+            SERVER_FOLDER_SET_INFO=set['info']
+            generate_average_metric_in_category(set['set'],scale_or_clients, category)
+
+
+generate_side_by_side_png_html()
+
+
+
+
+
+
+
+
 
 
 # print(SERVER_FOLDER_DATA)

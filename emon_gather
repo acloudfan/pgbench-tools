@@ -3,4 +3,4 @@
 
 . ./config
 
-python3  rds/gather-enhanced-mon-metrics.py
+python3  rds/gather-enhanced-mon-metrics.py $1

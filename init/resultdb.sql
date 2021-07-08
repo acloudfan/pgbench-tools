@@ -144,7 +144,7 @@ CREATE TABLE test_settings (
     numeric_value numeric,
     numeric_unit text
 );
-
+DROP TABLE IF EXISTS test_statements;
 CREATE TABLE test_statements (
     server text,
     test integer,
@@ -324,5 +324,34 @@ SELECT hex_to_dec(split_part($1,'/',1)) * 16 * 1024 * 1024 * 255
     + hex_to_dec(split_part($1,'/',2));
 $$ language sql
 ;
+
+
+-- Tables added for enhanced monitoring -----
+
+DROP TABLE IF EXISTS test_pmon_metrics_data;
+CREATE TABLE test_pmon_metrics_data (
+    server text NOT NULL,
+    set int NOT NULL,
+    test integer NOT NULL,
+    events json NOT NULL
+);
+
+DROP TABLE IF EXISTS pmon_metric_stripped;
+CREATE TABLE pmon_metric_stripped (
+    collected timestamp,
+    timestamp bigint,
+    server text NOT NULL,
+    set int NOT NULL,
+    test integer NOT NULL,
+    clients  integer NOT NULL,
+    scale    integer NOT NULL,
+    category  varchar(50) NOT NULL,
+    metric text NOT NULL,
+    value float,
+    values  text
+);
+
+---------------------------------------------
+
 
 COMMIT;
